@@ -3,7 +3,7 @@
  <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pixel Art to SVG Converter</title>
+  <title>Pixel Art to SVG Converter - Optimized</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&amp;family=Outfit:wght@300;400;600;700&amp;display=swap" rel="stylesheet">
@@ -17,6 +17,8 @@
     .fade-up { animation: fadeUp 0.5s ease forwards; }
     .svg-code-box { max-height: 200px; overflow-y: auto; }
     canvas { image-rendering: pixelated; }
+    .loading-spinner { border: 3px solid rgba(99,102,241,0.3); border-top-color: #6366f1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
   <style>body { box-sizing: border-box; }</style>
   <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
@@ -28,7 +30,8 @@
    <header class="text-center pt-12 pb-6 px-4">
     <h1 id="main-title" class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">Pixel Art → SVG</h1>
     <p id="subtitle" class="mt-3 text-slate-400 text-lg">Upload your 512×512 pixel art and convert it to crisp, scalable SVG</p>
-   </header><!-- Main Content -->
+   </header>
+   <!-- Main Content -->
    <main class="max-w-4xl mx-auto px-4 pb-16">
     <!-- Upload Zone -->
     <div id="drop-zone" class="drop-zone rounded-2xl p-12 text-center cursor-pointer glow bg-slate-900/50 backdrop-blur fade-up">
@@ -40,8 +43,17 @@
        <p class="text-xl font-semibold text-slate-200">Drop your pixel art here</p>
        <p class="text-sm text-slate-500 mt-1">PNG or any image • 512×512 recommended</p>
       </div>
-     </div><input type="file" id="file-input" accept="image/*" class="hidden">
-    </div><!-- Result Section -->
+     </div>
+     <input type="file" id="file-input" accept="image/*" class="hidden">
+    </div>
+    
+    <!-- Loading Indicator -->
+    <div id="loading-indicator" class="hidden mt-8 flex justify-center">
+     <div class="loading-spinner"></div>
+     <p class="ml-3 text-slate-400">Converting to SVG...</p>
+    </div>
+
+    <!-- Result Section -->
     <div id="result-section" class="hidden mt-10 fade-up">
      <!-- Preview Cards -->
      <div class="grid md:grid-cols-2 gap-6 mb-8">
@@ -49,21 +61,32 @@
       <div class="bg-slate-900/70 rounded-2xl p-5 border border-slate-800">
        <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Original</h3>
        <div class="flex justify-center items-center bg-[repeating-conic-gradient(#1e293b_0%_25%,#0f172a_0%_50%)] bg-[length:16px_16px] rounded-xl p-4 min-h-[260px]">
-        <canvas id="original-canvas" class="max-w-full max-h-[240px] rounded"></canvas>
+        <canvas id="original-canvas" class="max-w-full max-h-[240px] rounded shadow-lg"></canvas>
        </div>
-      </div><!-- SVG Output -->
+      </div>
+      <!-- SVG Output -->
       <div class="bg-slate-900/70 rounded-2xl p-5 border border-slate-800">
        <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">SVG Output</h3>
        <div id="svg-preview" class="flex justify-center items-center bg-[repeating-conic-gradient(#1e293b_0%_25%,#0f172a_0%_50%)] bg-[length:16px_16px] rounded-xl p-4 min-h-[260px]">
        </div>
       </div>
-     </div><!-- Actions -->
+     </div>
+     <!-- Stats -->
+     <div id="svg-stats" class="text-center text-sm text-slate-500 mb-4"></div>
+     <!-- Actions -->
      <div class="flex flex-wrap gap-3 justify-center mb-8">
-      <button id="btn-download-svg" class="flex items-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold transition"> <i data-lucide="download" class="w-4 h-4"></i> Download SVG </button> <button id="btn-copy-svg" class="flex items-center gap-2 px-5 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl font-semibold transition"> <i data-lucide="copy" class="w-4 h-4"></i> Copy SVG Code </button>
-     </div><!-- SVG Code -->
+      <button id="btn-download-svg" class="flex items-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold transition shadow-lg"> 
+       <i data-lucide="download" class="w-4 h-4"></i> Download SVG 
+      </button> 
+      <button id="btn-copy-svg" class="flex items-center gap-2 px-5 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl font-semibold transition"> 
+       <i data-lucide="copy" class="w-4 h-4"></i> Copy SVG Code 
+      </button>
+     </div>
+     <!-- SVG Code -->
      <div class="bg-slate-900/70 rounded-2xl p-5 border border-slate-800">
       <div class="flex items-center justify-between mb-3">
-       <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">SVG Code</h3><span id="copy-feedback" class="text-xs text-emerald-400 hidden">Copied!</span>
+       <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">SVG Code</h3>
+       <span id="copy-feedback" class="text-xs text-emerald-400 hidden">Copied!</span>
       </div>
       <div class="svg-code-box bg-slate-950 rounded-xl p-4 mono text-xs text-slate-300 whitespace-pre-wrap break-all" id="svg-code-box"></div>
      </div>
@@ -83,8 +106,9 @@
 
   let config = { ...defaultConfig };
   let svgString = '';
+  let originalFileName = 'pixel-art';
 
-  // Initialize Element SDK if available, otherwise use fallback
+  // Initialize Element SDK if available
   if (window.elementSdk) {
     window.elementSdk.init({
       defaultConfig,
@@ -113,7 +137,6 @@
       ])
     });
   } else {
-    // Fallback for GitHub Pages - apply default config
     applyConfig(defaultConfig);
   }
 
@@ -138,18 +161,32 @@
   // File handling
   const dropZone = document.getElementById('drop-zone');
   const fileInput = document.getElementById('file-input');
+  const loadingIndicator = document.getElementById('loading-indicator');
 
   dropZone.addEventListener('click', () => fileInput.click());
   dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
   dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-  dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); if(e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]); });
-  fileInput.addEventListener('change', (e) => { if(e.target.files[0]) processFile(e.target.files[0]); });
+  dropZone.addEventListener('drop', (e) => { 
+    e.preventDefault(); 
+    dropZone.classList.remove('dragover'); 
+    if(e.dataTransfer.files[0]) {
+      originalFileName = e.dataTransfer.files[0].name.replace(/\.[^/.]+$/, '');
+      processFile(e.dataTransfer.files[0]);
+    }
+  });
+  fileInput.addEventListener('change', (e) => { 
+    if(e.target.files[0]) {
+      originalFileName = e.target.files[0].name.replace(/\.[^/.]+$/, '');
+      processFile(e.target.files[0]);
+    }
+  });
 
   function processFile(file) {
+    loadingIndicator.classList.remove('hidden');
     try {
       const reader = new FileReader();
       reader.onerror = () => {
-        console.error('FileReader error:', reader.error);
+        loadingIndicator.classList.add('hidden');
         showError('Error reading file. Please try again.');
       };
       reader.onload = (e) => {
@@ -159,23 +196,28 @@
           img.onload = () => {
             try {
               convertToSVG(img);
+              loadingIndicator.classList.add('hidden');
             } catch (err) {
+              loadingIndicator.classList.add('hidden');
               console.error('SVG conversion error:', err);
               showError('Error converting image to SVG.');
             }
           };
           img.onerror = () => {
+            loadingIndicator.classList.add('hidden');
             console.error('Image load error');
             showError('Failed to load image. Try another file.');
           };
           img.src = e.target.result;
         } catch (err) {
+          loadingIndicator.classList.add('hidden');
           console.error('Image setup error:', err);
           showError('Error processing image.');
         }
       };
       reader.readAsDataURL(file);
     } catch (err) {
+      loadingIndicator.classList.add('hidden');
       console.error('File process error:', err);
       showError('Error reading file.');
     }
@@ -185,8 +227,10 @@
     const resultSection = document.getElementById('result-section');
     resultSection.classList.remove('hidden');
     document.getElementById('svg-preview').innerHTML = `<div class="text-red-400 text-center py-8">${message}</div>`;
+    document.getElementById('svg-stats').innerHTML = '';
   }
 
+  // Optimized conversion with Run-Length Encoding
   function convertToSVG(img) {
     const size = 512;
     const canvas = document.getElementById('original-canvas');
@@ -198,62 +242,133 @@
 
     const imageData = ctx.getImageData(0, 0, size, size);
     const pixels = imageData.data;
-
-    // Build SVG with optimal rectangle merging
-    const colorMap = {};
-    let rects = '';
-
-    // Group pixels by color and create rectangles
+    
+    let rectsArray = [];
+    let totalRects = 0;
+    
+    // Run-Length Encoding per row
     for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
+      let x = 0;
+      while (x < size) {
         const idx = (y * size + x) * 4;
         const r = pixels[idx];
         const g = pixels[idx + 1];
         const b = pixels[idx + 2];
         const a = pixels[idx + 3];
-
+        
         // Skip transparent pixels
-        if (a === 0) continue;
-
+        if (a === 0) {
+          x++;
+          continue;
+        }
+        
+        // Find run length of same color
+        let runLength = 1;
+        while (x + runLength < size) {
+          const nextIdx = (y * size + (x + runLength)) * 4;
+          const nextR = pixels[nextIdx];
+          const nextG = pixels[nextIdx + 1];
+          const nextB = pixels[nextIdx + 2];
+          const nextA = pixels[nextIdx + 3];
+          
+          // Check if same color and not transparent
+          if (nextA !== 0 && nextR === r && nextG === g && nextB === b) {
+            runLength++;
+          } else {
+            break;
+          }
+        }
+        
         // Convert to hex color
         const hex = '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('').toUpperCase();
         const opacity = a < 255 ? ` opacity="${(a / 255).toFixed(3)}"` : '';
         
-        // Each pixel becomes a 1x1 rect for perfect clarity
-        rects += `<rect x="${x}" y="${y}" width="1" height="1" fill="${hex}"${opacity}/>`;
+        // Create rectangle for the run
+        rectsArray.push(`<rect x="${x}" y="${y}" width="${runLength}" height="1" fill="${hex}"${opacity}/>`);
+        totalRects++;
+        x += runLength;
       }
     }
-
+    
+    const rects = rectsArray.join('');
     svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" shape-rendering="crispEdges">${rects}</svg>`;
-
+    
+    // Calculate size reduction stats
+    const pixelCount = size * size;
+    const reduction = ((pixelCount - totalRects) / pixelCount * 100).toFixed(1);
+    const svgSizeKB = (svgString.length / 1024).toFixed(1);
+    const originalSizeKB = (pixelCount * 80 / 1024).toFixed(1); // Approximate original size
+    
     // Show results
     document.getElementById('result-section').classList.remove('hidden');
     document.getElementById('svg-preview').innerHTML = svgString;
     document.getElementById('svg-code-box').textContent = svgString;
+    document.getElementById('svg-stats').innerHTML = `📊 ${totalRects.toLocaleString()} rectangles | 💾 ${svgSizeKB} KB | ✨ ${reduction}% smaller than per-pixel method`;
+    
     lucide.createIcons();
   }
 
-  // Download SVG
+  // Download SVG with original filename
   document.getElementById('btn-download-svg').addEventListener('click', () => {
     if (!svgString) return;
     const blob = new Blob([svgString], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'pixel-art.svg'; a.click();
+    a.href = url; 
+    a.download = `${originalFileName}.svg`; 
+    a.click();
     URL.revokeObjectURL(url);
   });
 
-  // Copy SVG
-  document.getElementById('btn-copy-svg').addEventListener('click', () => {
+  // Copy SVG with error handling and fallback
+  document.getElementById('btn-copy-svg').addEventListener('click', async () => {
     if (!svgString) return;
-    navigator.clipboard.writeText(svgString).then(() => {
-      const fb = document.getElementById('copy-feedback');
+    
+    const fb = document.getElementById('copy-feedback');
+    
+    try {
+      // Try modern clipboard API first
+      await navigator.clipboard.writeText(svgString);
       fb.classList.remove('hidden');
+      fb.textContent = 'Copied!';
       setTimeout(() => fb.classList.add('hidden'), 2000);
-    });
+    } catch (err) {
+      console.warn('Clipboard API failed, using fallback:', err);
+      
+      // Fallback method: select and execCommand
+      try {
+        const codeBox = document.getElementById('svg-code-box');
+        const range = document.createRange();
+        range.selectNodeContents(codeBox);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        
+        const success = document.execCommand('copy');
+        selection.removeAllRanges();
+        
+        if (success) {
+          fb.classList.remove('hidden');
+          fb.textContent = 'Copied! (Fallback)';
+          setTimeout(() => fb.classList.add('hidden'), 2000);
+        } else {
+          throw new Error('execCommand failed');
+        }
+      } catch (fallbackErr) {
+        console.error('Both copy methods failed:', fallbackErr);
+        fb.classList.remove('hidden');
+        fb.textContent = '⚠️ Select code and press Ctrl+C';
+        fb.classList.add('text-yellow-400');
+        setTimeout(() => {
+          fb.classList.add('hidden');
+          fb.classList.remove('text-yellow-400');
+          fb.textContent = 'Copied!';
+        }, 3000);
+      }
+    }
   });
 
   lucide.createIcons();
 </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a002c2b94e082e2c',t:'MTc3OTUyNTY3Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
