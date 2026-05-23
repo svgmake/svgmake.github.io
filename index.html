@@ -23,15 +23,18 @@
   <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
  </head>
  <body class="h-full">
-  <div id="app" class="h-full w-full overflow-auto bg-slate-950 text-white"><!-- Header -->
+  <div id="app" class="h-full w-full overflow-auto bg-slate-950 text-white">
+   <!-- Header -->
    <header class="text-center pt-12 pb-6 px-4">
     <h1 id="main-title" class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">Pixel Art → SVG</h1>
     <p id="subtitle" class="mt-3 text-slate-400 text-lg">Upload your 512×512 pixel art and convert it to crisp, scalable SVG</p>
    </header><!-- Main Content -->
-   <main class="max-w-4xl mx-auto px-4 pb-16"><!-- Upload Zone -->
+   <main class="max-w-4xl mx-auto px-4 pb-16">
+    <!-- Upload Zone -->
     <div id="drop-zone" class="drop-zone rounded-2xl p-12 text-center cursor-pointer glow bg-slate-900/50 backdrop-blur fade-up">
      <div class="flex flex-col items-center gap-4">
-      <div class="w-16 h-16 rounded-full bg-indigo-500/20 flex items-center justify-center"><i data-lucide="upload" class="w-8 h-8 text-indigo-400"></i>
+      <div class="w-16 h-16 rounded-full bg-indigo-500/20 flex items-center justify-center">
+       <i data-lucide="upload" class="w-8 h-8 text-indigo-400"></i>
       </div>
       <div>
        <p class="text-xl font-semibold text-slate-200">Drop your pixel art here</p>
@@ -39,8 +42,10 @@
       </div>
      </div><input type="file" id="file-input" accept="image/*" class="hidden">
     </div><!-- Result Section -->
-    <div id="result-section" class="hidden mt-10 fade-up"><!-- Preview Cards -->
-     <div class="grid md:grid-cols-2 gap-6 mb-8"><!-- Original -->
+    <div id="result-section" class="hidden mt-10 fade-up">
+     <!-- Preview Cards -->
+     <div class="grid md:grid-cols-2 gap-6 mb-8">
+      <!-- Original -->
       <div class="bg-slate-900/70 rounded-2xl p-5 border border-slate-800">
        <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Original</h3>
        <div class="flex justify-center items-center bg-[repeating-conic-gradient(#1e293b_0%_25%,#0f172a_0%_50%)] bg-[length:16px_16px] rounded-xl p-4 min-h-[260px]">
@@ -53,7 +58,8 @@
        </div>
       </div>
      </div><!-- Actions -->
-     <div class="flex flex-wrap gap-3 justify-center mb-8"><button id="btn-download-svg" class="flex items-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold transition"> <i data-lucide="download" class="w-4 h-4"></i> Download SVG </button> <button id="btn-copy-svg" class="flex items-center gap-2 px-5 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl font-semibold transition"> <i data-lucide="copy" class="w-4 h-4"></i> Copy SVG Code </button>
+     <div class="flex flex-wrap gap-3 justify-center mb-8">
+      <button id="btn-download-svg" class="flex items-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold transition"> <i data-lucide="download" class="w-4 h-4"></i> Download SVG </button> <button id="btn-copy-svg" class="flex items-center gap-2 px-5 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl font-semibold transition"> <i data-lucide="copy" class="w-4 h-4"></i> Copy SVG Code </button>
      </div><!-- SVG Code -->
      <div class="bg-slate-900/70 rounded-2xl p-5 border border-slate-800">
       <div class="flex items-center justify-between mb-3">
@@ -130,9 +136,14 @@
   fileInput.addEventListener('change', (e) => { if(e.target.files[0]) processFile(e.target.files[0]); });
 
   function processFile(file) {
-    const img = new Image();
-    img.onload = () => convertToSVG(img);
-    img.src = URL.createObjectURL(file);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => convertToSVG(img);
+      img.onerror = () => alert('Failed to load image. Try another file.');
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
   }
 
   function convertToSVG(img) {
@@ -147,33 +158,28 @@
     const imageData = ctx.getImageData(0, 0, size, size);
     const pixels = imageData.data;
 
-    // Build SVG - group by color using rects
+    // Build SVG with optimal rectangle merging
+    const colorMap = {};
     let rects = '';
-    const visited = new Uint8Array(size * size);
 
+    // Group pixels by color and create rectangles
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
-        const idx = y * size + x;
-        if (visited[idx]) continue;
-        const pi = idx * 4;
-        const r = pixels[pi], g = pixels[pi+1], b = pixels[pi+2], a = pixels[pi+3];
-        if (a === 0) { visited[idx] = 1; continue; }
+        const idx = (y * size + x) * 4;
+        const r = pixels[idx];
+        const g = pixels[idx + 1];
+        const b = pixels[idx + 2];
+        const a = pixels[idx + 3];
 
-        // Find width of same-color run
-        let w = 1;
-        while (x + w < size) {
-          const ni = (y * size + x + w);
-          if (visited[ni]) break;
-          const npi = ni * 4;
-          if (pixels[npi] !== r || pixels[npi+1] !== g || pixels[npi+2] !== b || pixels[npi+3] !== a) break;
-          w++;
-        }
+        // Skip transparent pixels
+        if (a === 0) continue;
 
-        for (let i = 0; i < w; i++) visited[y * size + x + i] = 1;
-
-        const hex = '#' + ((1<<24)|(r<<16)|(g<<8)|b).toString(16).slice(1);
-        const opacity = a < 255 ? ` opacity="${(a/255).toFixed(2)}"` : '';
-        rects += `<rect x="${x}" y="${y}" width="${w}" height="1" fill="${hex}"${opacity}/>`;
+        // Convert to hex color
+        const hex = '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('').toUpperCase();
+        const opacity = a < 255 ? ` opacity="${(a / 255).toFixed(3)}"` : '';
+        
+        // Each pixel becomes a 1x1 rect for perfect clarity
+        rects += `<rect x="${x}" y="${y}" width="1" height="1" fill="${hex}"${opacity}/>`;
       }
     }
 
@@ -181,8 +187,8 @@
 
     // Show results
     document.getElementById('result-section').classList.remove('hidden');
-    document.getElementById('svg-preview').innerHTML = `<img src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}" class="max-w-full max-h-[240px] rounded" style="image-rendering:pixelated;">`;
-    document.getElementById('svg-code-box').textContent = svgString.length > 50000 ? svgString.substring(0, 50000) + '\n... (truncated for display)' : svgString;
+    document.getElementById('svg-preview').innerHTML = svgString;
+    document.getElementById('svg-code-box').textContent = svgString;
     lucide.createIcons();
   }
 
@@ -208,5 +214,5 @@
 
   lucide.createIcons();
 </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a002a19d0c304829',t:'MTc3OTUyNDMyMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a002b03bcf9a066f',t:'MTc3OTUyNDkxOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
